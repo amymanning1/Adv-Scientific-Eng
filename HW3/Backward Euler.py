@@ -21,8 +21,10 @@ for i in delta_t:
         n+=1
     # Graph
     plt.plot(t, exact_y, color='red', label='Exact Solution')
-    plt.plot(t, ylist, color='blue', label='Forward Euler Estimate with delta t = ' + str(i))
-    plt.title('Exact Solution vs Forward Euler')
+    plt.plot(t, ylist, color='blue', label='Backward Euler Estimate with delta t = ' + str(i))
+    plt.title('Exact Solution vs Backward Euler')
+    plt.xlabel('t')
+    plt.ylabel('y')
     plt.legend()
     plt.show()
       
