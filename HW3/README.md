@@ -1,0 +1,1 @@
+This folder contains Amy Manning's homework 3 solutions for Advanced Scientific Engineering. There are three python files that demonstrate the convergence of Forward and Backward Euler methods and the Trapezoid methods for time discretization. The pdf file contains handwritten solutions and derivations for updates equations, stability conditions, and the exact solution. 
