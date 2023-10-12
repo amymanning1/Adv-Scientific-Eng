@@ -12,21 +12,18 @@ for i in delta_t:
         y = np.exp(-1 * alpha * j) # Exact Solution
         exact_y.append(y) # add another exact solution to list to plot
         if n==0:
-            y_new = (1-alpha*i)*y0
+            y_new = (y0 * (1 - i/2 * alpha) )/(1+alpha*(i/2))
             ylist.append(y_new)
         else : 
             y_old = ylist[n-1]
-            y_new = (1-alpha*i)*y_old # Update Equation
+            y_new = (y_old * (1 - i/2 * alpha) )/(1+alpha*(i/2)) # Update Equation
             ylist.append(y_new) # Add new y guess to list
         n+=1
     # Graph
     plt.plot(t, exact_y, color='red', label='Exact Solution')
-    plt.plot(t, ylist, color='blue', label='Forward Euler Estimate with delta t = ' + str(i))
-    plt.title('Exact Solution vs Forward Euler')
+    plt.plot(t, ylist, color='blue', label='Trapezoidal Estimate with delta t = ' + str(i))
+    plt.title('Exact Solution vs Trapezoid Method')
     plt.xlabel('t')
     plt.ylabel('y')
     plt.legend()
     plt.show()
-      
-
-
