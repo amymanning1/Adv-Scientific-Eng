@@ -1,5 +1,7 @@
 import numpy as np
+from numpy import linalg as LA
 import sympy as sym
+
 # Initializing node info for Ku=f
 N = 11
 xl=0
@@ -7,12 +9,14 @@ xr=1
 x=np.linspace(xl,xr,N)
 u_x=np.sin(np.pi*x) # u(x,0)=sin(pi*x)
 u_0=0 # u(0,t)=u(1,t)=0
-#fxt=(np.pi^2-1)*np.exp(-t)*np.sin(np.pi*x)
+#t=sym.Symbol('t')
+# x=sym.Symbol('x')
+
+func = (np.pi^2-1)*np.exp(-t)*np.sin(np.pi*x)
+
 # BCs
 nat_bound = [0, 1]
-dbc = np.sin(np.pi* x)
-
-
+dbc = u_x
 
 # initializing vars for Fe
 # will use u_x from section above as initial condition
@@ -20,6 +24,8 @@ delta_t=1/551
 T0=0
 Tf=15 #seconds?
 t=sym.Symbol('t')
+#t=np.arange(T0,Tf,delta_t)
+
 # Create uniform grid and connectivity map
 Ne = N-1
 h=(xr-xl)/Ne
@@ -32,6 +38,9 @@ while i<Ne:
     iee[i][1]=i+1
     i+=1
 x[Ne]=xr
+dc=2/h #wrt x
+dx= h/2 #wrt c
+
 
 # Find M (mass matrix), nontrivial
 c=sym.Symbol('c')
@@ -41,9 +50,15 @@ i=0
 j=0
 while i<Ne:
     while j<Ne:
-        M[i][j] = sym.integrate(g,(c, -1, 1)) 
+        if i==j:
+            M[i][j] = sym.integrate(g,(c, -1, 1)) 
+        
+        else:
+            M[i][j] = sym.integrate(g,(c, -1, 1))
         j+=1
-    i+=1 
+    i+=1
+    j=0
+invM=LA.inv(np.array(M))
 
 
 # Define and initialize parent grid -1<C<1
@@ -89,7 +104,27 @@ for i in N:
         K[i][i]=1
 
 # Forward Euler Heat Equation Addition
+n=0
+k=0
+l=0
+nt=(Tf-T0)/delta_t
+ctime=T0
+quadpt=1/np.sqrt(3)
+phi1=(1-quadpt)/2
+phi2=(1+quadpt)/2
+while n<nt:
+    ctime=T0+(n+1)*delta_t
+    n+=1
+    # Build time dependent RHS vector
+    while k<Ne:
+        # 2nd order quadrature
+        flocal[0]=p*(dc)*(phi[0])+g*(dc)*(phi[1])
+        flocal[1]=p*(dc)*(phi[1])+g*(dc)*(phi[0])
+        l=0
+        while l<2:
+            global_node1=iee[k][l]
+            F[global_node1]+=flocal[l]
+        k+=1
 
-
-
+#u_n = u_n - delta_t*invM*K*u_n + delta_t*invM*F
     
