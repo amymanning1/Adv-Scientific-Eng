@@ -12,7 +12,9 @@ u_0=0 # u(0,t)=u(1,t)=0
 #t=sym.Symbol('t')
 # x=sym.Symbol('x')
 
-func = (np.pi^2-1)*np.exp(-t)*np.sin(np.pi*x)
+def f(x,t):
+    func = (np.pi**2-1)*np.exp(-t)*np.sin(np.pi*x)
+    return func
 
 # BCs
 nat_bound = [0, 1]
@@ -42,23 +44,16 @@ dc=2/h #wrt x
 dx= h/2 #wrt c
 
 
-# Find M (mass matrix), nontrivial
-c=sym.Symbol('c')
-g=((1-c)/2)+((1+c)/2)+(h/2)
-M=np.zeros((Ne,Ne))
-i=0
-j=0
-while i<Ne:
-    while j<Ne:
-        if i==j:
-            M[i][j] = sym.integrate(g,(c, -1, 1)) 
-        
-        else:
-            M[i][j] = sym.integrate(g,(c, -1, 1))
-        j+=1
-    i+=1
-    j=0
+# Find M (mass matrix), nontrivial calculated in pdf both already reduced M* K*
+twos=[2]*(Ne-1)
+neg_ones=[-1]*(Ne-2)
+M=np.diag(twos)+np.diag(neg_ones,k=-1)+np.diag(neg_ones,k=1)
+M=M/30
 invM=LA.inv(np.array(M))
+
+# Build stiffness matrix
+K=np.diag(twos)+np.diag(neg_ones,k=-1)+np.diag(neg_ones,k=1)
+K=K/4
 
 
 # Define and initialize parent grid -1<C<1
@@ -103,6 +98,10 @@ for i in N:
         F[i]=dbc[i]
         K[i][i]=1
 
+# Solving Ku=f for u
+func=f(x,t)
+u=func*LA(np.array(K))
+
 # Forward Euler Heat Equation Addition
 n=0
 k=0
@@ -110,8 +109,9 @@ l=0
 nt=(Tf-T0)/delta_t
 ctime=T0
 quadpt=1/np.sqrt(3)
-phi1=(1-quadpt)/2
-phi2=(1+quadpt)/2
+phi=[(1-quadpt)/2, (1+quadpt)/2]
+p=f(quadpt,ctime)
+g=f(-1*quadpt,ctime)
 while n<nt:
     ctime=T0+(n+1)*delta_t
     n+=1
@@ -128,3 +128,4 @@ while n<nt:
 
 #u_n = u_n - delta_t*invM*K*u_n + delta_t*invM*F
     
+# Backward Euler
