@@ -15,8 +15,9 @@ def phi2(c):
 def nontriv_mat(N,Ne,h):
     # Mass Matrix, reduced mass matrix, K, K_red, M_inv 
     twos=N*[2]
+    fours=N*[4]
     ones=np.ones(Ne)
-    M=np.diag(twos)+np.diag(ones,k=-1)+np.diag(ones,k=1)
+    M=np.diag(fours)+np.diag(ones,k=-1)+np.diag(ones,k=1)
     M[0][0]=0
     M[Ne][Ne]=0
     M=M*(h/6)
@@ -26,12 +27,18 @@ def nontriv_mat(N,Ne,h):
     K=K/h
     # Now building reduced versions
     twos=(Ne-1)*[2]
-    ones=(Ne-2)*[1]
-    M_red=(np.diag(twos)+np.diag(ones,k=-1)+np.diag(ones,k=1))
+    ones=np.ones(Ne-2)
+    fours=(Ne-1)*[4]
+    M_red=(np.diag(fours)+np.diag(ones,k=-1)+np.diag(ones,k=1))*(h/6)
     M_inv=LA.inv(M_red) # M_inv is inverse of reduced M matrix
+    M_inv=M_inv*(h/6)
     K_red=(np.diag(twos)+np.diag(-1*ones,k=-1)+np.diag(-1*ones,k=1))
     K_red=K_red/h
-    return K_red,M_inv
+    print('M = ')
+    print(M_red)
+    print('K = ')
+    print(K_red)
+    return K_red,M_inv,M_red
 
 def gridMap(Ne,xl,xr,h,x):
     i=0
@@ -64,8 +71,8 @@ def forEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red):
             # 2 local nodes for every 1D element, 2nd order gaussian quadrature
             q1=1/m.sqrt(3) # Quadrature points, weights=1 in second order quadrature; if user chooses a higher order, initialize weights and intro in equation; here they are redundant
             q2=-1/m.sqrt(3)
-            q1map=(q1+1)*dx+x[k+1]
-            q2map=(q2+1)*dx+x[k+1]
+            q1map=(q1+1)*dx+x[k]
+            q2map=(q2+1)*dx+x[k]
             flocal=[0,0]
             flocal[0]=(np.pi**2-1)*np.exp(-ctime)*(h/2)*(phi1(q1)*np.sin(np.pi*q1map)+phi1(q2)*np.sin(np.pi*q2map))
             flocal[1]=(np.pi**2-1)*np.exp(-ctime)*(h/2)*(phi2(q1)*np.sin(np.pi*q1map)+phi2(q2)*np.sin(np.pi*q2map))
@@ -78,12 +85,15 @@ def forEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red):
                 l+=1
             k+=1
         # forward euler
-        F_red=F[0:-1]
-        u=u-dt*((1/6)*(M_inv@K_red))@u+dt*(M_inv*(h/6))@F_red
+        F_red=F[1:]
+        # u=u-dt*((1/6)*(M_inv@K_red))@u+dt*(M_inv*(h/6))@F_red
+        u=u-dt*M_inv@K_red@u+dt*M_inv@F_red
         n+=1
+    print('Forward euler f = ')
+    print(F)
     return u
 
-def backEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red):
+def backEul(nt,t0,dt,Ne,h,iee,x,K_red,x_red,M_red):
         # Used quadrature to integrate F, work is in pdf
     # Now performing local element calculations
     n=1
@@ -99,11 +109,11 @@ def backEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red):
             # 2 local nodes for every 1D element, 2nd order gaussian quadrature
             q1=1/m.sqrt(3) # Quadrature points, weights=1 in second order quadrature; if user chooses a higher order, initialize weights and intro in equation; here they are redundant
             q2=-1/m.sqrt(3)
-            q1map=(q1+1)*dx+x[k+1]
-            q2map=(q2+1)*dx+x[k+1]
+            q1map=(q1+1)*dx+x[k]
+            q2map=(q2+1)*dx+x[k]
             flocal=[0,0]
-            flocal[0]=(np.pi**2-1)*np.exp(-ctime)*(h/2)*(phi1(q1)*np.sin(np.pi*q1map)+phi1(q2)*np.sin(np.pi*q2map))
-            flocal[1]=(np.pi**2-1)*np.exp(-ctime)*(h/2)*(phi2(q1)*np.sin(np.pi*q1map)+phi2(q2)*np.sin(np.pi*q2map))
+            flocal[0]=(np.pi**2-1)*np.exp(-ctime+dt)*(h/2)*(phi1(q1)*np.sin(np.pi*q1map)+phi1(q2)*np.sin(np.pi*q2map))
+            flocal[1]=(np.pi**2-1)*np.exp(-ctime+dt)*(h/2)*(phi2(q1)*np.sin(np.pi*q1map)+phi2(q2)*np.sin(np.pi*q2map))
             
             # Finite Element Assembly
             l=0
@@ -112,10 +122,14 @@ def backEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red):
                 F[int(global_node1)]+=flocal[l]
                 l+=1
             k+=1
-        # forward euler
-        F_red=F[0:-1]
-        u_next=u-dt*((1/6)*(M_inv@K_red))@u+dt*(M_inv*(h/6))@F_red # left off here
+        # backward euler
+        F_red=F[1:]
+        B=dt*M_red+K_red
+        invB=LA.inv(B)
+        u=dt*invB@M_red@u + invB@F_red # left off here
         n+=1
+    print('backward euler f = ')
+    print(F)
     return u
 
 def main():
@@ -133,24 +147,28 @@ def main():
     nt=(tf-t0)/dt
     
     # Call Functions
-    K_red,M_inv=nontriv_mat(N,Ne,h)
+    K_red,M_inv,M_red=nontriv_mat(N,Ne,h)
     x,iee=gridMap(Ne,xl,xr,h,x)
     u=forEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red)
-    v=backEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red)
+    v=backEul(nt,t0,dt,Ne,h,iee,x,K_red,x_red,M_red)
     # Add natural bcs to u
     nat0=0 # u(0,t)=u(1,t)=0
     nat1=0
     u=np.append(u,nat1)
     u=np.insert(u,0,nat0)
-    print('u = ')
-    print(u)
+    v=np.append(v,nat1)
+    v=np.insert(v,0,nat0)
+    # print('u = ')
+    # print(u)
+    
 
     # Plotting
     t=1
     exact_sol=np.exp(-t)*np.sin(np.pi*x)
     plt.plot(x,exact_sol,color='red',label='Exact Solution')
-    plt.plot(x,u,color='blue',label='FEM estimate')
-    plt.title('Forward Euler with timestep ' + str(dt))
+    plt.plot(x,u,color='blue',label='Forward Euler')
+    plt.plot(x,v,color='green',label='Backward Euler')
+    plt.title('Comparison with timestep ' + str(dt))
     plt.legend()
     plt.show()
 
