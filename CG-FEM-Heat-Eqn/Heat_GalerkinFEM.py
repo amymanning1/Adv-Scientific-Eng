@@ -82,13 +82,10 @@ def forEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red,N):
         F_red=F[1:-1]
         u=u-dt*M_inv@K_red@u+dt*M_inv@F_red
         n+=1
-    # print('Forward euler f = ')
-    # print(F)
-    print(dt*(M_inv@K_red@u))
     return u
 
-def backEul(nt,t0,dt,Ne,h,iee,x,K_red,x_red,M_red,N):
-        # Used quadrature to integrate F, work is in pdf
+def backEul(nt,t0,dt,Ne,h,iee,x,K_red,x_red,M_red,N,M_inv):
+    # Used quadrature to integrate F, work is in pdf
     # Now performing local element calculations
     n=1
     dx=h/2
@@ -119,10 +116,9 @@ def backEul(nt,t0,dt,Ne,h,iee,x,K_red,x_red,M_red,N):
         F_red=F[1:-1]
         B=dt*M_red+K_red
         invB=LA.inv(B)
-        u=dt*invB@M_red@u + invB@F_red
+        # u=dt*invB@M_red@u + invB@F_red
+        u=u-dt*M_inv@K_red@u+dt*M_inv@F_red
         n+=1
-    # print('backward euler f = ')
-    # print(F)
     return u
 
 def main():
@@ -136,14 +132,14 @@ def main():
     x_red=x[1:-1]
     t0=0 #time constants
     tf=1
-    dt=1/1000
+    dt=1/600
     nt=(tf-t0)/dt
     
     # Call Functions
     K_red,M_inv,M_red=nontriv_mat(N,Ne,h)
     x,iee=gridMap(Ne,xl,xr,h,x)
     u=forEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red,N)
-    v=backEul(nt,t0,dt,Ne,h,iee,x,K_red,x_red,M_red,N)
+    v=backEul(nt,t0,dt,Ne,h,iee,x,K_red,x_red,M_red,N,M_inv)
     # Add natural bcs to u
     nat0=0 # u(0,t)=u(1,t)=0
     nat1=0
@@ -151,10 +147,7 @@ def main():
     u=np.insert(u,0,nat0)
     v=np.append(v,nat1)
     v=np.insert(v,0,nat0)
-    # print('u = ')
-    # print(u)
     
-
     # Plotting
     t=1
     exact_sol=np.exp(-t)*np.sin(np.pi*x)
