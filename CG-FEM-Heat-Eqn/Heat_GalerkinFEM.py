@@ -31,13 +31,8 @@ def nontriv_mat(N,Ne,h):
     fours=(Ne-1)*[4]
     M_red=(np.diag(fours)+np.diag(ones,k=-1)+np.diag(ones,k=1))*(h/6)
     M_inv=LA.inv(M_red) # M_inv is inverse of reduced M matrix
-    M_inv=M_inv*(h/6)
     K_red=(np.diag(twos)+np.diag(-1*ones,k=-1)+np.diag(-1*ones,k=1))
     K_red=K_red/h
-    print('M = ')
-    print(M_red)
-    print('K = ')
-    print(K_red)
     return K_red,M_inv,M_red
 
 def gridMap(Ne,xl,xr,h,x):
@@ -51,19 +46,18 @@ def gridMap(Ne,xl,xr,h,x):
     x[Ne]=xr
     return x,iee
 
-def dbc(x):
-    ux=np.sin(np.pi*x)
+def dbc(z):
+    ux=np.sin(np.pi*z)
     return ux
 
-def forEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red):
+def forEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red,N):
     # Used quadrature to integrate F, work is in pdf
     # Now performing local element calculations
     n=1
-    
-    dx=h/2
+    dx=h/2 #dx/dc
     u=dbc(x_red)
     while n<=nt:
-        F=np.zeros(Ne)
+        F=np.zeros(N) 
         ctime=t0+n*dt
         k=0
         # Build time dependent RHS vector
@@ -74,8 +68,8 @@ def forEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red):
             q1map=(q1+1)*dx+x[k]
             q2map=(q2+1)*dx+x[k]
             flocal=[0,0]
-            flocal[0]=(np.pi**2-1)*np.exp(-ctime)*(h/2)*(phi1(q1)*np.sin(np.pi*q1map)+phi1(q2)*np.sin(np.pi*q2map))
-            flocal[1]=(np.pi**2-1)*np.exp(-ctime)*(h/2)*(phi2(q1)*np.sin(np.pi*q1map)+phi2(q2)*np.sin(np.pi*q2map))
+            flocal[0]=(np.pi**2-1)*np.exp(-ctime)*dx*(phi1(q1)*np.sin(np.pi*q1map)+phi1(q2)*np.sin(np.pi*q2map))
+            flocal[1]=(np.pi**2-1)*np.exp(-ctime)*dx*(phi2(q1)*np.sin(np.pi*q1map)+phi2(q2)*np.sin(np.pi*q2map))
             
             # Finite Element Assembly
             l=0
@@ -85,23 +79,22 @@ def forEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red):
                 l+=1
             k+=1
         # forward euler
-        F_red=F[1:]
-        # u=u-dt*((1/6)*(M_inv@K_red))@u+dt*(M_inv*(h/6))@F_red
+        F_red=F[1:-1]
         u=u-dt*M_inv@K_red@u+dt*M_inv@F_red
         n+=1
-    print('Forward euler f = ')
-    print(F)
+    # print('Forward euler f = ')
+    # print(F)
+    print(dt*(M_inv@K_red@u))
     return u
 
-def backEul(nt,t0,dt,Ne,h,iee,x,K_red,x_red,M_red):
+def backEul(nt,t0,dt,Ne,h,iee,x,K_red,x_red,M_red,N):
         # Used quadrature to integrate F, work is in pdf
     # Now performing local element calculations
     n=1
-    
     dx=h/2
     u=dbc(x_red)
     while n<=nt:
-        F=np.zeros(Ne)
+        F=np.zeros(N)
         ctime=t0+n*dt
         k=0
         # Build time dependent RHS vector
@@ -123,13 +116,13 @@ def backEul(nt,t0,dt,Ne,h,iee,x,K_red,x_red,M_red):
                 l+=1
             k+=1
         # backward euler
-        F_red=F[1:]
+        F_red=F[1:-1]
         B=dt*M_red+K_red
         invB=LA.inv(B)
-        u=dt*invB@M_red@u + invB@F_red # left off here
+        u=dt*invB@M_red@u + invB@F_red
         n+=1
-    print('backward euler f = ')
-    print(F)
+    # print('backward euler f = ')
+    # print(F)
     return u
 
 def main():
@@ -143,14 +136,14 @@ def main():
     x_red=x[1:-1]
     t0=0 #time constants
     tf=1
-    dt=1/551
+    dt=1/1000
     nt=(tf-t0)/dt
     
     # Call Functions
     K_red,M_inv,M_red=nontriv_mat(N,Ne,h)
     x,iee=gridMap(Ne,xl,xr,h,x)
-    u=forEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red)
-    v=backEul(nt,t0,dt,Ne,h,iee,x,K_red,x_red,M_red)
+    u=forEul(nt,t0,dt,Ne,h,iee,x,M_inv,K_red,x_red,N)
+    v=backEul(nt,t0,dt,Ne,h,iee,x,K_red,x_red,M_red,N)
     # Add natural bcs to u
     nat0=0 # u(0,t)=u(1,t)=0
     nat1=0
