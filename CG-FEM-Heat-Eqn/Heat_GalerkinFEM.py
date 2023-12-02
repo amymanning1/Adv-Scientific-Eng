@@ -1,6 +1,5 @@
 import numpy as np
 from numpy import linalg as LA
-import sympy as sym
 import math as m
 import matplotlib.pyplot as plt
 
@@ -114,9 +113,6 @@ def backEul(nt,t0,dt,Ne,h,iee,x,K_red,x_red,M_red,N,M_inv):
             k+=1
         # backward euler
         F_red=F[1:-1]
-        B=dt*M_red+K_red
-        invB=LA.inv(B)
-        # u=dt*invB@M_red@u + invB@F_red
         u=u-dt*M_inv@K_red@u+dt*M_inv@F_red
         n+=1
     return u
